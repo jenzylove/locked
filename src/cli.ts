@@ -39,6 +39,10 @@ if (args[0] === "join") {
   writeFileSync(mcpPath, JSON.stringify(mcp, null, 2));
   console.log(`Wrote ${mcpPath}. Claude Code in this repo now has the locked_* tools as ${dev}.`);
   console.log(`For Codex, add to ~/.codex/config.toml:\n[mcp_servers.locked]\ncommand = "${server.command}"\nargs = ${JSON.stringify(server.args)}\nenv = ${JSON.stringify(server.env).replace(/":/g, '" =').replace(/^\{/, "{ ").replace(/\}$/, " }")}`);
+} else if (args[0] === "sync") {
+  const { sync, describe } = await import("./sidecar/sync.js");
+  const { intent, conflicts } = await sync();
+  console.log(`Synced ${intent.changedFiles.length} files, ${intent.symbols.length} symbol changes.\n${describe(conflicts)}`);
 } else if (args[0] === "register") {
   const r = await registerAgent({
     bridgeUrl: need("bridge", flag("bridge", process.env.SWITCH_BRIDGE_URL)),
