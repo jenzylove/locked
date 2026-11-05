@@ -48,26 +48,50 @@ function postBoardSoon() {
   }, 4000);
 }
 
+let conflicts: Conflict[] = [];
+
 function boardInput() {
-  const intents = Object.values(state.intents);
   return {
     repo: state.repo,
-    intents,
-    conflicts: forecast(intents),
+    intents: Object.values(state.intents),
+    conflicts,
     contracts: Object.values(state.contracts),
     lastRehearsal: state.lastRehearsal,
   };
 }
 
+const blob = (ref: string, file: string) =>
+  run("git", ["rev-parse", `${ref}:${file}`], { cwd: cfg.repoDir }).then((r) => r.stdout.trim(), () => "missing");
+
+/** Drop overlap warnings where both branches hold byte-identical files (for example one dev merged the other's commit). */
+async function refreshConflicts(): Promise<Conflict[]> {
+  const raw = forecast(Object.values(state.intents));
+  await run("git", ["fetch", "--quiet", "origin", "+refs/locked/*:refs/locked/*"], { cwd: cfg.repoDir }).catch(() => undefined);
+  const kept: Conflict[] = [];
+  for (const c of raw) {
+    if (c.kind !== "signature_break" && c.file) {
+      const [a, b] = c.devs.map((d) => state.intents[d]?.wipRef);
+      if (a && b && (await blob(a, c.file)) === (await blob(b, c.file))) continue;
+    }
+    kept.push(c);
+  }
+  conflicts = kept;
+  return kept;
+}
+
 async function onIntent(intent: Intent) {
   const prev = state.intents[intent.dev];
   state.intents[intent.dev] = intent;
-  const conflicts = forecast(Object.values(state.intents));
+  await refreshConflicts();
   const fresh = conflicts.filter((c) => !state.announced.includes(c.id));
-  for (const c of fresh) {
-    state.announced.push(c.id);
-    await say(renderConflict(c));
-  }
+  state.announced.push(...fresh.map((c) => c.id));
+  if (fresh.length === 1) await say(renderConflict(fresh[0]));
+  else if (fresh.length > 1)
+    await say(
+      `**${fresh.length} new heads ups**\n` +
+        fresh.map((c) => `${c.severity === "break" ? "🔴" : "🟡"} ${c.summary}`).join("\n") +
+        `\nSay \`why <name>\` for the evidence on any of them.`,
+    );
   persist();
   if (!prev || fresh.length || prev.symbols.length !== intent.symbols.length) postBoardSoon();
   scheduleRehearsal();
@@ -160,19 +184,37 @@ async function onRoomMessage(m: SwitchMessage) {
   const v = (verb ?? "").toLowerCase();
   if (v === "board" || v === "") return void say(renderBoard({ ...boardInput(), now: Date.now() }));
   if (v === "approve" || v === "reject") {
-    const c = state.contracts[(arg ?? "").toUpperCase()];
-    if (!c) return void say(`I can't find agreement ${arg ?? ""}.`);
-    if (!isLead(who)) return void say(`Only the tech lead (${cfg.leads.join(", ")}) can ${v} shared interface changes. ${who}, I've left ${c.id} as it is.`);
-    try {
-      const next = v === "approve" ? approve(c, who, true, Date.now()) : reject(c, who, true, Date.now());
-      saveContract(next);
-      return void announceContract(next);
-    } catch (e) {
-      return void say(`${c.id}: ${(e as Error).message}`);
+    // Accept "approve C1", "approve C1, C2 and C3" or "approve all".
+    const ids = /\ball\b/i.test(text)
+      ? Object.values(state.contracts).filter((c) => c.state === "accepted" || c.state === "escalated").map((c) => c.id)
+      : [...new Set((text.match(/\bC\d+\b/gi) ?? []).map((s) => s.toUpperCase()))];
+    if (!ids.length) return void say(`Tell me which agreement, for example \`${v} C1\`.`);
+    if (!isLead(who)) return void say(`Only the tech lead (${cfg.leads.join(", ")}) can ${v} shared interface changes. ${who}, I've left ${ids.join(", ")} as they are.`);
+    const done: string[] = [];
+    const problems: string[] = [];
+    for (const id of ids) {
+      const c = state.contracts[id];
+      if (!c) {
+        problems.push(`${id}: no such agreement`);
+        continue;
+      }
+      try {
+        saveContract(v === "approve" ? approve(c, who, true, Date.now()) : reject(c, who, true, Date.now()));
+        done.push(id);
+      } catch (e) {
+        problems.push(`${id}: ${(e as Error).message}`);
+      }
     }
+    const verbPast = v === "approve" ? "approved" : "rejected";
+    await say(
+      [done.length ? `✅ ${who} ${verbPast} ${done.join(", ")}. Agents can now build on ${done.length === 1 ? "it" : "them"}.` : "", ...problems]
+        .filter(Boolean)
+        .join("\n"),
+    );
+    return void postBoardSoon();
   }
   if (v === "why") {
-    const c = forecast(Object.values(state.intents)).find((x) => x.id.toLowerCase().includes((arg ?? "").toLowerCase()));
+    const c = conflicts.find((x) => x.id.toLowerCase().includes((arg ?? "").toLowerCase()));
     if (!c) return void say("No open heads up matches that.");
     return void say(`${c.summary}\n${c.evidence.map((e) => `• ${e}`).join("\n")}`);
   }
@@ -233,4 +275,5 @@ const server = createServer(async (req, res) => {
 });
 
 server.listen(cfg.port, () => console.log(`[locked] engine API on :${cfg.port}, room ${cfg.roomId}`));
+void refreshConflicts();
 void agent.listen(onRoomMessage, [cfg.roomId]);
