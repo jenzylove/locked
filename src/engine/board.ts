@@ -60,6 +60,7 @@ export function contractStateWords(c: Contract): string {
 }
 
 const arrow = (c: Contract) => `${c.symbol} ${c.before ?? "(new)"} → ${c.after}`;
+const clip = (s: string, n = 90) => (s.length > n ? s.slice(0, n - 1) + "…" : s);
 
 export function renderContract(c: Contract): string {
   const lines = [
@@ -105,7 +106,7 @@ export function renderBoard(s: BoardState): string {
     ...capped(s.conflicts, MAX.conflicts, (c) => `${c.severity === "break" ? "🔴" : "🟡"} ${c.summary} \`${c.id}\``),
     "",
     "**Interface agreements**",
-    ...capped(s.contracts, MAX.contracts, (c) => `• \`${c.id}\` ${arrow(c)}: ${contractStateWords(c)}`),
+    ...capped(s.contracts, MAX.contracts, (c) => `• \`${c.id}\` ${clip(arrow(c))}: ${contractStateWords(c)}`),
     "",
     "**Last merge rehearsal**",
     rehearsalLine(s.lastRehearsal),

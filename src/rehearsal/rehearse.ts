@@ -70,7 +70,7 @@ function runShell(cmd: string, cwd: string, timeoutMs: number): Promise<RunOut> 
       settled = true;
       clearTimeout(timer);
       if (timedOut) out += `\n[locked] timed out after ${timeoutMs}ms: ${cmd}`;
-      resolve({ ok: ok && !timedOut, output: out });
+      resolve({ ok: ok && !timedOut, output: out.replace(/[[0-9;]*m/g, "") });
     };
     child.stdout?.on("data", (d) => (out += d));
     child.stderr?.on("data", (d) => (out += d));

@@ -110,7 +110,7 @@ async function runRehearsal() {
           ? `✅ Merge rehearsal: ${result.branches.join(" + ")} merge clean and pass ${result.checks.join(", ")}.`
           : result.status === "text_conflict"
             ? `⚠️ Merge rehearsal: ${result.branches.join(" + ")} conflict as text in ${result.files.join(", ")}.`
-            : `❌ Merge rehearsal: ${result.branches.join(" + ")} pass alone but fail together.\n\`\`\`\n${result.output}\n\`\`\``;
+            : `❌ Merge rehearsal: ${result.branches.join(" + ")} pass alone but fail together.\n\`\`\`\n${keyLines(result.output)}\n\`\`\``;
       await say(line);
       postBoardSoon();
     }
@@ -123,6 +123,12 @@ async function runRehearsal() {
       scheduleRehearsal();
     }
   }
+}
+
+function keyLines(out: string): string {
+  const lines = out.split(/\r?\n/);
+  const hits = lines.filter((l) => /error TS|FAIL|AssertionError|Expected|Received|^\$ /.test(l));
+  return (hits.length ? hits : lines.slice(-8)).slice(0, 10).join("\n");
 }
 
 function saveContract(c: Contract) {
