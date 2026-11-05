@@ -1,0 +1,30 @@
+{
+  "name": "locked",
+  "version": "0.1.0",
+  "description": "Coding agents on different laptops coordinate their changes in one Switch room, so parallel work merges clean.",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "locked": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc -p .",
+    "test": "vitest run",
+    "engine": "tsx src/engine/main.ts",
+    "sidecar": "tsx src/sidecar/main.ts"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.20.0",
+    "eventsource-parser": "^3.0.0",
+    "typescript": "^5.6.3",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "tsx": "^4.19.2",
+    "vitest": "^2.1.4"
+  }
+}
