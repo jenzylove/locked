@@ -68,9 +68,8 @@ export function renderContract(c: Contract): string {
     `Status: ${contractStateWords(c)}.`,
   ];
   if (c.state === "proposed" || c.state === "countered") {
-    lines.push(`${listNames(waitingOn(c), 5) || "Nobody"} can reply "@locked accept ${c.id}" or "@locked counter ${c.id} <your idea>".`);
+    lines.push(`${listNames(waitingOn(c), 5) || "Nobody"} can accept or counter ${c.id} with locked_respond.`);
   }
-  if (c.state === "accepted" || c.state === "escalated") lines.push(`Tech lead: reply "@locked approve ${c.id}" or "@locked reject ${c.id}".`);
   return lines.join("\n");
 }
 
@@ -79,7 +78,7 @@ export function renderConflict(c: Conflict): string {
   const lines = [`${icon} **${c.severity === "break" ? "This will break" : "Heads up"}** (${c.devs.join(" and ")}) \`${c.id}\``, c.summary];
   lines.push(...c.evidence.slice(0, 5).map((e) => `• ${e}`));
   if (c.evidence.length > 5) lines.push(`+${c.evidence.length - 5} more`);
-  if (c.kind !== "hot_file" && c.severity === "break") lines.push(`Reply "@locked propose ${c.id}" to agree on one shape.`);
+  if (c.kind !== "hot_file" && c.severity === "break") lines.push(`The agents can agree on one shape with locked_propose.`);
   return lines.join("\n");
 }
 

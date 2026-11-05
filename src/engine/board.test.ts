@@ -59,10 +59,9 @@ describe("one off messages", () => {
   });
 
   it("renderContract tells people how to reply", () => {
-    expect(renderContract(contract)).toContain("@locked accept k1");
+    expect(renderContract(contract)).toContain("accept or counter k1 with locked_respond");
     const accepted = respond(respond(contract, "Ada", "accept", undefined, 2), "Femi", "accept", undefined, 3);
     const out = renderContract(accepted);
     expect(out).toContain("waiting on tech lead");
-    expect(out).toContain("@locked approve k1");
   });
 });

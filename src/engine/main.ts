@@ -132,19 +132,26 @@ function saveContract(c: Contract) {
 
 async function announceContract(c: Contract) {
   let text = renderContract(c);
-  if (c.state === "accepted" && c.needsLead) text += `\nTech lead: reply \`@locked approve ${c.id}\` or \`@locked reject ${c.id}\`.`;
+  if (c.state === "accepted" && c.needsLead) text += `\nTech lead: reply \`approve ${c.id}\` or \`reject ${c.id}\`.`;
   await say(text);
   postBoardSoon();
 }
 
 const isLead = (who: string) => cfg.leads.includes(who.toLowerCase());
 
+const COMMANDS = /^(board|approve|reject|why|rehearse|help)\b/i;
+const agentNames = new Set(env("LOCKED_IGNORE_SENDERS", "locked,ada,tolu").split(",").map((s) => s.trim().toLowerCase()));
+
 async function onRoomMessage(m: SwitchMessage) {
-  if (!m.addressed || m.roomId !== cfg.roomId) return;
-  const text = m.body.replace(/@\S+/g, " ").trim();
+  if (m.roomId !== cfg.roomId) return;
+  const who = (m.senderName || m.sender).replace(/^@/, "");
+  if (agentNames.has(who.toLowerCase())) return;
+  const text = m.body.replace(/@locked\b/gi, " ").trim();
+  // Humans can talk to Locked with a plain command ("approve C1"); an @mention is optional.
+  if (!m.addressed && !COMMANDS.test(text)) return;
+  console.log(`[locked] command from ${who}: ${text}`);
   const [verb, arg] = text.split(/\s+/);
   const v = (verb ?? "").toLowerCase();
-  const who = m.senderName || m.sender;
   if (v === "board" || v === "") return void say(renderBoard({ ...boardInput(), now: Date.now() }));
   if (v === "approve" || v === "reject") {
     const c = state.contracts[(arg ?? "").toUpperCase()];
@@ -220,4 +227,4 @@ const server = createServer(async (req, res) => {
 });
 
 server.listen(cfg.port, () => console.log(`[locked] engine API on :${cfg.port}, room ${cfg.roomId}`));
-void agent.listen(onRoomMessage);
+void agent.listen(onRoomMessage, [cfg.roomId]);

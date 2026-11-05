@@ -51,6 +51,9 @@ export class SwitchAgent {
   private beat?: NodeJS.Timeout;
   private abort?: AbortController;
   private stopped = false;
+  private markReady!: () => void;
+  /** Resolves once the first connection_state frame arrives, so operations can run. */
+  readonly ready = new Promise<void>((r) => (this.markReady = r));
 
   constructor(
     private bridgeUrl: string,
@@ -91,10 +94,10 @@ export class SwitchAgent {
   }
 
   /** Open the event stream (scope all) and keep it alive until stop(). */
-  async listen(onMessage: (m: SwitchMessage) => void | Promise<void>): Promise<void> {
+  async listen(onMessage: (m: SwitchMessage) => void | Promise<void>, rooms: string[] = []): Promise<void> {
     while (!this.stopped) {
       try {
-        await this.openStream(onMessage);
+        await this.openStream(onMessage, rooms);
       } catch (err) {
         if (this.stopped) return;
         this.log(`stream dropped: ${(err as Error).message}; reopening`);
@@ -109,16 +112,17 @@ export class SwitchAgent {
     this.abort?.abort();
   }
 
-  private async openStream(onMessage: (m: SwitchMessage) => void | Promise<void>) {
+  private async openStream(onMessage: (m: SwitchMessage) => void | Promise<void>, rooms: string[]) {
     this.abort = new AbortController();
     const qs = new URLSearchParams({
       connection_id: this.connectionId,
-      scope: "all",
+      scope: rooms.length === 1 ? "single" : "all",
       filter: "all",
       start_from: this.cursor ? String(this.cursor) : "head",
       client: "locked",
       client_version: "0.1.0",
     });
+    if (rooms.length) qs.set("rooms", rooms.join(","));
     const res = await fetch(`${this.bridgeUrl}/agents/${this.agentId}/events?${qs}`, {
       headers: { Authorization: `Bearer ${this.apiKey}`, Accept: "text/event-stream" },
       signal: this.abort.signal,
@@ -140,6 +144,7 @@ export class SwitchAgent {
           interval = (data.heartbeat_interval_seconds ?? 2) * 1000;
           this.startBeat(interval);
           this.log(`connected, rooms: ${(data.rooms ?? []).join(", ") || "none"}`);
+          this.markReady();
         } else if (type === "evicted") {
           this.log(`evicted: ${data.reason}`);
         } else if (type === "message") {
