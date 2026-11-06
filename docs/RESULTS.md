@@ -34,4 +34,4 @@ What happened:
 
 ## Engine tests
 
-`npx vitest run`: 5 files, 44 tests, all passing. They cover change extraction from real git repos, break forecasting, the agreement state machine, the room board, and merge rehearsal on real git (clean, text conflict, and pass alone but fail together).
+`npx vitest run`: 6 files, 47 tests, all passing. They cover change extraction from real git repos, break forecasting, the agreement state machine, the room board, and merge rehearsal on real git (clean, text conflict, and pass alone but fail together).

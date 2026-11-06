@@ -53,6 +53,42 @@ if (args[0] === "join") {
     overwrite: args.includes("--overwrite"),
   });
   console.log(`LOCKED_AGENT_ID=${r.id}\nLOCKED_API_KEY=${r.api_key}`);
+} else if (args[0] === "room") {
+  // Locked creates the team room itself and brings the agents in, using its own Switch connection.
+  const { SwitchAgent } = await import("./switch/client.js");
+  const agent = new SwitchAgent(
+    need("bridge", flag("bridge", process.env.SWITCH_BRIDGE_URL)),
+    need("agent", flag("agent", process.env.LOCKED_AGENT_ID)),
+    need("api-key", flag("api-key", process.env.LOCKED_API_KEY)),
+    () => {},
+  );
+  void agent.listen(() => {});
+  await agent.ready;
+  const self = flag("self", "locked")!;
+  const agents = [self, ...(flag("agents", "") ?? "").split(",").map((s) => s.trim()).filter((s) => s && s !== self)];
+  const bridges = await agent.op<{ id: string; type: string; is_default: boolean; status: string }[]>("list_bridges", {});
+  const bridge = bridges.find((b) => b.id === flag("bridge-id")) ?? bridges.find((b) => b.is_default && b.status === "active") ?? bridges[0];
+  if (!bridge) throw new Error("no messaging app bridge on this Switch server");
+  const room = await agent.op<{ id: string; name: string }>("create_room", {
+    name: need("name", flag("name")),
+    description: flag("description", "Developers and their coding agents coordinate parallel work with Locked"),
+    agent_names: agents,
+    bridge_id: bridge.id,
+    instructions:
+      flag("instructions") ??
+      'Use the locked_* tools: sync when you start and after edits, and agree changes to shared code with teammates before relying on them. The tech lead approves with "approve <id>".',
+  });
+  console.log(`Created room ${room.name} on ${bridge.type} with ${agents.join(", ")}.\nLOCKED_ROOM_ID=${room.id}`);
+  agent.stop();
+  process.exit(0);
 } else {
-  console.log("usage:\n  locked join --dev <name> --engine <url> --token <team token> [--repo <dir>] [--base origin/main]\n  locked register --bridge <url> --key <registration key> [--name locked] [--overwrite]");
+  console.log(
+    [
+      "usage:",
+      "  locked register --bridge <url> --key <registration key> [--name locked] [--overwrite]",
+      "  locked room --name <room> --agents ada,tolu [--bridge <url> --agent <id> --api-key <key>] [--instructions <text>]",
+      "  locked join --dev <name> --engine <url> --token <your token> [--repo <dir>] [--base origin/main]",
+      "  locked sync            publish this repo's changes to the engine once (uses LOCKED_* env)",
+    ].join("\n"),
+  );
 }

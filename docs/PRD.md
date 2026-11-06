@@ -1,5 +1,12 @@
 # Locked PRD
 
+> **What shipped differs from this plan in five places.** This is the plan written before the build; the README and [RESULTS.md](RESULTS.md) describe what exists.
+> 1. Change extraction uses the **TypeScript compiler API**, not tree-sitter. TypeScript and JavaScript only; Python is not supported.
+> 2. Merge rehearsal runs in a **throwaway git worktree** on the engine host, not a Docker sandbox, and rehearses the two most recently active branches.
+> 3. The live run used **two clones on one PC**, each with its own Claude Code agent, not two laptops.
+> 4. The demo repo is a **small sample app** (`examples/teamdesk`), not a public open source project.
+> 5. The chat app is **Mattermost** (bundled with Switch), not Slack.
+
 Flip the Switch hackathon (WeMakeDevs x DevTools Academy, powered by Switch).
 Track: Best Business Workflow. Side tracks: Best Blog, #HowISwitch posts.
 Build window: Nov 3 18:31 UTC to Nov 7 18:29 UTC 2026 (Nov 3 19:31 to Nov 7 19:29 Lagos time).

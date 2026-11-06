@@ -10,15 +10,16 @@ This reproduces the run in [RESULTS.md](RESULTS.md) on one machine: a shared git
 
 ## 2. Demo app and clones
 
+From the folder that contains `locked`:
+
 ```bash
-cd ..
-git clone --bare locked/examples/teamdesk teamdesk-remote.git     # or: git init a bare repo and push examples/teamdesk
-for d in ada tolu engine; do git clone teamdesk-remote.git teamdesk-$d; (cd teamdesk-$d && npm ci); done
+cp -r locked/examples/teamdesk teamdesk-src
+(cd teamdesk-src && git init -q -b main && git add -A && git commit -qm "Teamdesk demo app")
+git clone -q --bare teamdesk-src teamdesk-remote.git
+for d in ada tolu engine; do git clone -q teamdesk-remote.git teamdesk-$d; (cd teamdesk-$d && npm ci); done
 (cd teamdesk-ada && git checkout -b feat/invites)
 (cd teamdesk-tolu && git checkout -b feat/roles)
 ```
-
-If `git clone --bare` of a subfolder is not possible, copy `examples/teamdesk` into a new folder, `git init`, commit, then clone that bare.
 
 ## 3. Register Locked and start the engine
 
@@ -28,9 +29,14 @@ npx tsx src/cli.ts register --bridge http://127.0.0.1:56890 --key <AGENT_REGISTR
 # prints LOCKED_AGENT_ID and LOCKED_API_KEY
 ```
 
-Create the room with Locked's own Switch operations, or in Console (Your Rooms, Create room, Mattermost) and add `locked`. Note the room id.
+In Console, add agents `ada` and `tolu` first (step 4). Then let Locked create the room and bring them in:
 
-Fill `.env` from `.env.example` (pick any random `LOCKED_TEAM_TOKEN`), then:
+```bash
+SWITCH_BRIDGE_URL=http://127.0.0.1:56890 LOCKED_AGENT_ID=<id> LOCKED_API_KEY=<key> npx tsx src/cli.ts room --name teamdesk --agents ada,tolu
+# prints LOCKED_ROOM_ID
+```
+
+Fill `.env` from `.env.example`. Pick a random `LOCKED_TEAM_TOKEN` (read only) and one token per developer in `LOCKED_DEV_TOKENS` (`ada:<token>,tolu:<token>`); each developer's token can only write as that developer. Then:
 
 ```bash
 set -a; . ./.env; set +a
@@ -42,11 +48,11 @@ The log prints `connected, rooms: <room id>`.
 ## 4. Give each developer's agent the Locked tools
 
 ```bash
-npx tsx src/cli.ts join --dev ada  --engine http://127.0.0.1:7420 --token $LOCKED_TEAM_TOKEN --repo ../teamdesk-ada
-npx tsx src/cli.ts join --dev tolu --engine http://127.0.0.1:7420 --token $LOCKED_TEAM_TOKEN --repo ../teamdesk-tolu
+npx tsx src/cli.ts join --dev ada  --engine http://127.0.0.1:7420 --token <ada's token>  --repo ../teamdesk-ada
+npx tsx src/cli.ts join --dev tolu --engine http://127.0.0.1:7420 --token <tolu's token> --repo ../teamdesk-tolu
 ```
 
-This writes a `.mcp.json` in each clone. In Console, add agents `ada` and `tolu` (provider Claude Code, directory = each clone) and add both to the room. Room instruction used in the run:
+This writes a `.mcp.json` in each clone. In Console, add agents `ada` and `tolu` (provider Claude Code, directory = each clone). The room instruction `locked room` sets by default, and the one used in the run:
 
 > Use the locked_* tools: sync when you start and after edits, and agree changes to shared code with teammates before relying on them. The tech lead approves with "approve <id>".
 

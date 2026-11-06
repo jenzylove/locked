@@ -10,6 +10,7 @@ import { propose, respond, approve, reject, escalate } from "../contract/contrac
 import { rehearse } from "../rehearsal/rehearse.js";
 import { renderBoard, renderConflict, renderContract } from "./board.js";
 import { loadState, saveState, nextContractId, type EngineState } from "./state.js";
+import { actingDev, parseDevTokens, resolveCaller } from "./auth.js";
 import type { Conflict, Contract, Intent } from "../types.js";
 
 const run = promisify(execFile);
@@ -233,13 +234,19 @@ function send(res: ServerResponse, code: number, data: unknown) {
   res.end(JSON.stringify(data));
 }
 
+const devTokens = parseDevTokens(process.env.LOCKED_DEV_TOKENS);
+
 const server = createServer(async (req, res) => {
   try {
-    if (req.headers.authorization !== `Bearer ${cfg.teamToken}`) return send(res, 401, { error: "bad team token" });
+    const caller = resolveCaller(req.headers.authorization, cfg.teamToken, devTokens);
+    if (caller.kind === "none") return send(res, 401, { error: "bad token" });
+    const as = (claimed?: string) => actingDev(caller, claimed, devTokens.size > 0);
     const url = new URL(req.url ?? "/", "http://x");
     const parts = url.pathname.split("/").filter(Boolean);
     if (req.method === "POST" && url.pathname === "/intent") {
-      const conflicts = await onIntent(await body<Intent>(req));
+      const intent = await body<Intent>(req);
+      intent.dev = as(intent.dev);
+      const conflicts = await onIntent(intent);
       return send(res, 200, { conflicts });
     }
     if (req.method === "GET" && url.pathname === "/board") {
@@ -253,7 +260,7 @@ const server = createServer(async (req, res) => {
     }
     if (req.method === "POST" && url.pathname === "/contracts") {
       const b = await body<Omit<Parameters<typeof propose>[0], "id" | "at">>(req);
-      const c = propose({ ...b, id: nextContractId(state), at: Date.now() });
+      const c = propose({ ...b, proposer: as(b.proposer), id: nextContractId(state), at: Date.now() });
       saveContract(c);
       await announceContract(c);
       return send(res, 200, c);
@@ -262,7 +269,8 @@ const server = createServer(async (req, res) => {
       const c = state.contracts[parts[1]];
       if (!c) return send(res, 404, { error: "no such agreement" });
       const b = await body<{ dev: string; answer: "accept" | "counter" | "escalate"; note?: string }>(req);
-      const next = b.answer === "escalate" ? escalate(c, b.dev, Date.now()) : respond(c, b.dev, b.answer, b.note, Date.now());
+      const dev = as(b.dev);
+      const next = b.answer === "escalate" ? escalate(c, dev, Date.now()) : respond(c, dev, b.answer, b.note, Date.now());
       saveContract(next);
       await announceContract(next);
       return send(res, 200, next);
@@ -274,6 +282,7 @@ const server = createServer(async (req, res) => {
   }
 });
 
-server.listen(cfg.port, () => console.log(`[locked] engine API on :${cfg.port}, room ${cfg.roomId}`));
+const host = process.env.LOCKED_HOST ?? "127.0.0.1";
+server.listen(cfg.port, host, () => console.log(`[locked] engine API on ${host}:${cfg.port}, room ${cfg.roomId}`));
 void refreshConflicts();
 void agent.listen(onRoomMessage, [cfg.roomId]);

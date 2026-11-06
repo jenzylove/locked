@@ -29,11 +29,11 @@ A real run, two Claude Code agents, one Mattermost room through Switch. Full tim
         └───────────────► shared git remote ───┴──── engine test merges ◄────────┘
 ```
 
-- **Sidecar** (on each developer's machine): an MCP server for that developer's coding agent. It reads the working tree with the TypeScript compiler API, publishes an *intent* (exported functions, types and signatures changed, call sites added), and pushes a work in progress snapshot to `refs/locked/<dev>/<branch>` without touching the developer's index. It syncs on its own every 15 seconds, so detection never depends on the agent remembering.
+- **Sidecar** (on each developer's machine): an MCP server for that developer's coding agent. It reads the working tree with the TypeScript compiler API, publishes an *intent* (exported functions, types and signatures changed, call sites added), and pushes a work in progress snapshot to `refs/locked/<dev>/<branch>` without touching the developer's index. While the agent's session is running it also syncs on its own every 15 seconds, so detection does not depend on the agent remembering to call it.
 - **Engine** (a custom Switch agent on the team server): built directly on the Switch agent protocol (SSE in, HTTP out). It merges every intent into one picture and:
   - **forecasts breaks**: a signature changed on one branch against callers on another, the same symbol changed two ways, hot files edited in parallel;
   - **runs interface agreements**: propose, accept, counter, escalate, approved by the tech lead only;
-  - **rehearses merges**: test merges the WIP refs in a throwaway git worktree, runs the project's checks, and reports clean, text conflict, or *passes alone, fails together* with the failing lines;
+  - **rehearses merges**: test merges the two most recently active branches' WIP refs in a throwaway git worktree, runs the project's checks, and reports clean, text conflict, or *passes alone, fails together* with the failing lines. This runs teammates' unfinished code on the engine host, the same trust a CI runner needs;
   - keeps a **board** in the room and answers `board`, `why <name>`, `approve <ids>`, `reject <ids>`.
 
 ## Where Switch is used
@@ -44,7 +44,8 @@ A real run, two Claude Code agents, one Mattermost room through Switch. Full tim
 | Agent protocol | Locked's engine is our own agent: registers, holds a live connection, claims its room, posts |
 | Switch Console providers | Runs each developer's Claude Code in its own folder and puts it in the room |
 | Room instructions | One line of team rules every agent reads on joining |
-| Room operations | Locked creates the room and invites the agents itself (`create_room`) |
+| Room operations | `locked room` creates the team room and brings the agents in over Locked's own Switch connection (`list_bridges`, `create_room`) |
+| Identity and access | Approvals come from the sender Switch reports, so only the named tech lead can approve; each developer's engine token can only act as that developer |
 
 Without Switch the sidecars have nowhere to meet. The agents run on different people's machines and answer to different people; the room is what puts them, the lead and the engine in one conversation.
 
@@ -54,19 +55,22 @@ Needs: Node 20+, git, [Switch Console](https://github.com/sandbox-quantum/switch
 
 ```bash
 git clone https://github.com/jenzylove/locked && cd locked && npm install
-npx vitest run                      # 44 tests: extraction, forecasting, agreements, board, real git rehearsals
+npx vitest run                      # 47 tests: extraction, forecasting, agreements, board, real git rehearsals
 
 # 1. Register Locked with your Switch server (bootstrap key: AGENT_REGISTRATION_TOKEN in the local server's switch-core.env)
 npx tsx src/cli.ts register --bridge http://127.0.0.1:56890 --key <registration key>
 
-# 2. Start the engine (env vars listed in docs/RUN.md)
+# 2. Let Locked create the room and bring the agents in
+npx tsx src/cli.ts room --name teamdesk --agents ada,tolu
+
+# 3. Start the engine (env vars in .env.example; it listens on 127.0.0.1 unless LOCKED_HOST says otherwise)
 npm run engine
 
-# 3. In each developer's repo, give its coding agent the Locked tools
-npx tsx src/cli.ts join --dev ada --engine http://127.0.0.1:7420 --token <team token> --repo ../teamdesk-ada
+# 4. In each developer's repo, give its coding agent the Locked tools, with that developer's own token
+npx tsx src/cli.ts join --dev ada --engine http://127.0.0.1:7420 --token <ada's token> --repo ../teamdesk-ada
 ```
 
-Then add both agents to a room with Locked, give each a normal task, and type `board`. Step by step, including the demo app, is in [docs/RUN.md](docs/RUN.md).
+Then give each agent a normal task in the room and type `board`. Step by step, including the demo app, is in [docs/RUN.md](docs/RUN.md).
 
 ## What is real
 
