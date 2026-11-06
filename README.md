@@ -1,10 +1,24 @@
-# Locked
+<p align="center">
+  <img src="docs/assets/logo.svg" width="96" alt="Locked logo">
+</p>
 
-**When every developer runs their own coding agent, Locked puts those agents in one Switch room so their parallel work merges clean.**
+<h1 align="center">Locked</h1>
 
-Each agent says what it is about to change, agrees shared interfaces with the teammates who depend on them, and gets a tech lead's approval in chat. Meanwhile Locked reads every branch's real code, forecasts the breaks git can't see, and test merges the work in progress before anyone opens a PR.
+<p align="center"><b>Your developers' coding agents agree on shared code in the team chat, and a human signs off, before anything merges.</b></p>
 
-> AI coding didn't make teams slow at writing code. It made them slow at merging it.
+<p align="center">
+  <a href="https://github.com/sandbox-quantum/switch"><img alt="Built on Switch" src="https://img.shields.io/badge/built%20on-Switch-FF895E"></a>
+  <img alt="Tests" src="https://img.shields.io/badge/tests-50%20passing-C8F031">
+  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5.6-3178C6">
+  <a href="LICENSE"><img alt="MIT" src="https://img.shields.io/badge/license-MIT-lightgrey"></a>
+  <img alt="Flip the Switch" src="https://img.shields.io/badge/Flip%20the%20Switch-Business%20Workflow-0D0E12">
+</p>
+
+<p align="center"><img src="docs/assets/room-approve.png" width="820" alt="The teamdesk room: the tech lead approves four agreements and Locked's board shows them agreed with a clean merge rehearsal"></p>
+
+When every developer runs a coding agent, the agents change shared functions without asking anyone. Each branch passes its own tests; main goes red at merge. **Locked turns those silent changes into agreements.** It sits in your [Switch](https://github.com/sandbox-quantum/switch) room with every developer's agent, spots when one agent's change will break another's code, drafts the interface agreement between them, lets the agents accept or push back right there in chat, and asks the tech lead to approve. Then it test merges their work to prove the agreed shape holds.
+
+> Agents don't need to code faster. They need to agree on the parts they share.
 
 ## Try it in one minute
 
@@ -15,16 +29,26 @@ git clone https://github.com/jenzylove/locked && cd locked && npm install
 npm run try
 ```
 
-It sets up a tiny team in a temp folder (a shared git remote and two developer clones of the demo app), makes two colliding edits, and runs the real engine on them. You see what Locked would post in the room: the break forecast, the merge rehearsal showing *each branch passes alone but they fail together* with the real compiler error, and the board. The edits are a fixed scenario; extraction, forecasting and rehearsal run live on them. The full experience, with coding agents in a Switch room, is below and in [docs/RUN.md](docs/RUN.md).
+It sets up a tiny team in a temp folder (a shared git remote and two developer clones of the demo app), and makes two colliding changes. Then the real engine runs the whole loop and prints what it would post in the room:
 
-## Watch it work
+1. 🔴 **This will break**: tolu changed `getUser`, and ada's new page calls the old shape.
+2. ❌ **Merge rehearsal**: each branch passes alone, together they fail (`invite.ts(4,25): Expected 2 arguments, but got 1`).
+3. 📝 **Locked drafts agreement C1**: `getUser(id)` → `getUser(id, viewer)`, waiting on ada.
+4. ada accepts, the tech lead approves, ada's code adapts.
+5. ✅ **Merge rehearsal**: tolu + ada merge clean.
 
-A real run, two Claude Code agents, one Mattermost room through Switch. Full timeline in [docs/RESULTS.md](docs/RESULTS.md).
+The two changes are a fixed scenario; extraction, forecasting, drafting, the agreement rules and both rehearsals run live on real git. The full experience, with coding agents in a Switch room, is below.
 
-1. **tolu** is told "guests must not see other users' emails". It works out that this changes four shared functions and proposes them through Locked as agreements C1 to C4, naming ada as affected.
-2. **ada** is told "show who invited you, with their email". It sees tolu's proposals on the board and asks the human the question nobody planted: should a guest see their inviter's email?
-3. Locked's **merge rehearsal** catches the classic failure: each branch passes alone, merged they fail 2 tests.
-4. The tech lead answers in chat, ada switches to tolu's rule and accepts, and the lead types `approve C1 C2 C3 C4`.
+## The live run
+
+Two Claude Code agents and a tech lead in one Mattermost room through Switch. Nothing in it was scripted beyond the two task messages; full timeline in [docs/RESULTS.md](docs/RESULTS.md).
+
+<p align="center"><img src="docs/assets/room-ask.png" width="820" alt="ada's agent asks the tech lead which rule wins before accepting tolu's interface changes"></p>
+
+1. **tolu** is told "guests must not see other users' emails". It works out that this changes four shared functions and proposes them in the room as agreements C1 to C4, naming ada as affected.
+2. **ada** is told "show who invited you, with their email". It sees the agreements, notices its page would leak the inviter's email past tolu's rule, and asks the human the question nobody planted: should a guest see who invited them?
+3. Locked's merge rehearsal catches the classic failure: each branch passes alone, merged they fail two tests.
+4. The tech lead answers in chat. ada switches to tolu's rule and accepts C1 to C4. The lead types `approve C1 C2 C3 C4`.
 5. Both branches merge to main. No conflicts, typecheck passes, **25 of 25 tests pass**.
 
 ## How it works
@@ -34,50 +58,50 @@ A real run, two Claude Code agents, one Mattermost room through Switch. Full tim
  ┌────────────────┐               ┌──────────────────────────┐            ┌────────────────┐
  │ Claude Code    │◄─────────────►│ ada   tolu   tech lead    │◄──────────►│ Claude Code    │
  │  + Locked MCP  │   locked_*    │            Locked agent   │  locked_*  │  + Locked MCP  │
- │    sidecar     │───intents────►│  board, heads ups,        │◄──intents──│    sidecar     │
- └──────┬─────────┘               │  agreements, rehearsals   │            └──────┬─────────┘
+ │    sidecar     │───intents────►│  agreements, board,       │◄──intents──│    sidecar     │
+ └──────┬─────────┘               │  heads ups, rehearsals    │            └──────┬─────────┘
         │ WIP ref                 └────────────▲─────────────┘                   │ WIP ref
         └───────────────► shared git remote ───┴──── engine test merges ◄────────┘
 ```
 
-- **Sidecar** (on each developer's machine): an MCP server for that developer's coding agent. It reads the working tree with the TypeScript compiler API, publishes an *intent* (exported functions, types and signatures changed, call sites added), and pushes a work in progress snapshot to `refs/locked/<dev>/<branch>` without touching the developer's index. While the agent's session is running it also syncs on its own every 15 seconds, so detection does not depend on the agent remembering to call it.
-- **Engine** (a custom Switch agent on the team server): built directly on the Switch agent protocol (SSE in, HTTP out). It merges every intent into one picture and:
-  - **forecasts breaks**: a signature changed on one branch against callers on another, the same symbol changed two ways, hot files edited in parallel;
-  - **runs interface agreements**: propose, accept, counter, escalate, approved by the tech lead only;
-  - **rehearses merges**: test merges the two most recently active branches' WIP refs in a throwaway git worktree, runs the project's checks, and reports clean, text conflict, or *passes alone, fails together* with the failing lines. This runs teammates' unfinished code on the engine host, the same trust a CI runner needs;
+**Interface agreements are the core.** An agreement names a shared symbol, its old and new shape, who proposed it and whose code depends on it. Affected agents accept, counter or escalate; anything shared waits for the tech lead, and only the lead Switch reports as the sender can approve. Agents propose them through their tools, and Locked drafts one itself whenever it forecasts a break nobody has agreed yet.
+
+The checks that feed it:
+
+- **Sidecar** (on each developer's machine): an MCP server for that developer's coding agent (`locked_sync`, `locked_board`, `locked_propose`, `locked_respond`, `locked_agreements`). It reads the working tree with the TypeScript compiler API, publishes an intent (exported functions, types and signatures changed, call sites added), and pushes a work in progress snapshot to `refs/locked/<dev>/<branch>` without touching the developer's index. While the agent's session runs it also syncs on its own every 15 seconds.
+- **Engine** (a custom Switch agent, built directly on the Switch agent protocol: SSE in, HTTP out):
+  - **forecasts breaks**: a signature changed on one branch against callers on another, the same symbol changed two ways, hot files edited in parallel. Overlaps where both branches hold identical files are ignored;
+  - **rehearses merges**: test merges the two most recently active branches in a throwaway git worktree, runs the project's own checks, and reports clean, text conflict, or *passes alone, fails together* with the failing lines. This runs teammates' unfinished code on the engine host, the same trust a CI runner needs;
   - keeps a **board** in the room and answers `board`, `why <name>`, `approve <ids>`, `reject <ids>`.
 
 ## Where Switch is used
 
 | Switch piece | What it does in Locked |
 |---|---|
-| Rooms on Mattermost | The team's one place: developers, their agents, the lead and Locked |
+| Rooms on Mattermost | The one place the developers, their agents, the lead and Locked work |
 | Agent protocol | Locked's engine is our own agent: registers, holds a live connection, claims its room, posts |
+| Identity and access | Only the tech lead Switch reports as the sender can approve; each developer's engine token can only act as that developer |
 | Switch Console providers | Runs each developer's Claude Code in its own folder and puts it in the room |
+| Room operations | `locked room` creates the team room and brings the agents in (`list_bridges`, `create_room`) |
 | Room instructions | One line of team rules every agent reads on joining |
-| Room operations | `locked room` creates the team room and brings the agents in over Locked's own Switch connection (`list_bridges`, `create_room`) |
-| Identity and access | Approvals come from the sender Switch reports, so only the named tech lead can approve; each developer's engine token can only act as that developer |
 
-Without Switch the sidecars have nowhere to meet. The agents run on different people's machines and answer to different people; the room is what puts them, the lead and the engine in one conversation.
+**Why only on Switch:** the agents belong to different people and run on different machines. Switch is what puts them, their humans and Locked in one conversation where an agreement can be proposed, argued and approved. Without the room there is nobody to agree with.
 
-## Judge fast path (about 10 minutes, no cloud keys)
+## Run the full setup
 
 Needs: Node 20+, git, [Switch Console](https://github.com/sandbox-quantum/switch/releases/latest) with its local server and Mattermost, Claude Code signed in.
 
 ```bash
-git clone https://github.com/jenzylove/locked && cd locked && npm install
-npx vitest run                      # 47 tests: extraction, forecasting, agreements, board, real git rehearsals
-
-# 1. Register Locked with your Switch server (bootstrap key: AGENT_REGISTRATION_TOKEN in the local server's switch-core.env)
+# 1. Register Locked with your Switch server (local bootstrap key: AGENT_REGISTRATION_TOKEN in switch-core.env)
 npx tsx src/cli.ts register --bridge http://127.0.0.1:56890 --key <registration key>
 
 # 2. Let Locked create the room and bring the agents in
 npx tsx src/cli.ts room --name teamdesk --agents ada,tolu
 
-# 3. Start the engine (env vars in .env.example; it listens on 127.0.0.1 unless LOCKED_HOST says otherwise)
+# 3. Start the engine (env in .env.example; listens on 127.0.0.1 unless LOCKED_HOST says otherwise)
 npm run engine
 
-# 4. In each developer's repo, give its coding agent the Locked tools, with that developer's own token
+# 4. Give each developer's coding agent the Locked tools, with that developer's own token
 npx tsx src/cli.ts join --dev ada --engine http://127.0.0.1:7420 --token <ada's token> --repo ../teamdesk-ada
 ```
 
@@ -87,23 +111,27 @@ Then give each agent a normal task in the room and type `board`. Step by step, i
 
 | Part | Status |
 |---|---|
+| Interface agreements, lead only approval, drafting from forecasts | Real, tested; agreements C1 to C4 ran live |
 | Change extraction from real code (TypeScript compiler API, real git) | Real, tested |
 | Break forecasting and overlap detection | Real, tested, ran live |
-| Interface agreements with lead only approval | Real, ran live (C1 to C4) |
 | Merge rehearsal on real branches with the project's own checks | Real, ran live, caught a pass alone fail together |
 | Custom Switch agent over the agent protocol | Real, live in a Mattermost room |
-| Two developers | Two Claude Code agents in two separate clones on one PC. Each has its own working tree; the design works the same across machines once both reach the team's git remote and Switch server |
+| Two developers | Two Claude Code agents in two separate clones on one PC. Each has its own working tree; the design is the same across machines once both reach the team's git remote and Switch server |
 | Final merge to main | Done by the tech lead from the terminal and posted to the room |
+
+## The business in one number
+
+In the live run, a break that two agents had already written into separate branches cost **one approval message** to settle, before either branch was merged. Without it, the same two branches pass their own tests and turn main red.
 
 ## Build
 
 ```bash
 npm run build   # compiles to dist/
-npm test
+npm test        # 50 tests
 ```
 
-TypeScript, Node 20+. Source: `src/intent` (extraction), `src/forecast`, `src/contract`, `src/rehearsal`, `src/engine` (Switch agent and board), `src/sidecar` (MCP tools), `src/switch` (protocol client).
+TypeScript, Node 20+. Source: `src/contract` (agreements), `src/engine` (Switch agent, board, drafting, auth), `src/intent` (extraction), `src/forecast`, `src/rehearsal`, `src/sidecar` (MCP tools), `src/switch` (protocol client). Build history in [docs/BUILD_LOG.md](docs/BUILD_LOG.md).
 
 ## License
 
-MIT
+MIT. See [SECURITY.md](SECURITY.md) to report a problem.
