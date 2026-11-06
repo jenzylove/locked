@@ -65,7 +65,7 @@ const clip = (s: string, n = 90) => (s.length > n ? s.slice(0, n - 1) + "…" : 
 export function renderContract(c: Contract): string {
   const lines = [
     `**Interface agreement \`${c.id}\`**: ${arrow(c)}`,
-    `${c.proposer} proposes this because ${c.reason}`,
+    c.reason.startsWith("Drafted by Locked") ? `${c.reason}.` : `${c.proposer} proposes this because ${c.reason}`,
     `Status: ${contractStateWords(c)}.`,
   ];
   if (c.state === "proposed" || c.state === "countered") {

@@ -11,6 +11,7 @@ import { rehearse } from "../rehearsal/rehearse.js";
 import { renderBoard, renderConflict, renderContract } from "./board.js";
 import { loadState, saveState, nextContractId, type EngineState } from "./state.js";
 import { actingDev, parseDevTokens, resolveCaller } from "./auth.js";
+import { draftAgreements } from "./draft.js";
 import type { Conflict, Contract, Intent } from "../types.js";
 
 const run = promisify(execFile);
@@ -93,6 +94,11 @@ async function onIntent(intent: Intent) {
         fresh.map((c) => `${c.severity === "break" ? "🔴" : "🟡"} ${c.summary}`).join("\n") +
         `\nSay \`why <name>\` for the evidence on any of them.`,
     );
+  for (const d of draftAgreements(fresh, Object.values(state.intents), Object.values(state.contracts))) {
+    const c = propose({ ...d, id: nextContractId(state), at: Date.now() });
+    saveContract(c);
+    await say(`📝 Locked drafted an agreement so this gets settled before merge.\n${renderContract(c)}`);
+  }
   persist();
   if (!prev || fresh.length || prev.symbols.length !== intent.symbols.length) postBoardSoon();
   scheduleRehearsal();

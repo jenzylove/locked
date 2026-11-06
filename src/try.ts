@@ -9,7 +9,9 @@ import { fileURLToPath } from "node:url";
 import { readIntent } from "./intent/extract.js";
 import { forecast } from "./forecast/forecast.js";
 import { rehearse } from "./rehearsal/rehearse.js";
-import { renderBoard, renderConflict } from "./engine/board.js";
+import { renderBoard, renderConflict, renderContract } from "./engine/board.js";
+import { draftAgreements } from "./engine/draft.js";
+import { approve, propose, respond } from "./contract/contract.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, "..");
@@ -112,10 +114,45 @@ if (result.status === "fails_together") {
   room(result.output.split(/\r?\n/).filter((l) => /error TS|^\$ /.test(l)).join("\n"));
 } else room(JSON.stringify(result));
 
+step("Locked drafts the interface agreement the two agents need");
+let [agreement] = draftAgreements(conflicts, [toluIntent, adaIntent], []).map((d, i) => propose({ ...d, id: `C${i + 1}`, at: Date.now() }));
+room(`📝 Locked drafted an agreement so this gets settled before merge.\n${renderContract(agreement)}`);
+
+step("In the room, ada's agent accepts it and the tech lead approves");
+agreement = respond(agreement, "ada", "accept", "I'll pass the viewer through", Date.now());
+room(renderContract(agreement));
+agreement = approve(agreement, "tech lead", true, Date.now());
+room(`✅ tech lead approved ${agreement.id}. Agents can now build on it.`);
+
+step("ada's agent adapts its own code to the agreed shape");
+const invitePath = join(ada, "src/pages/invite.ts");
+writeFileSync(
+  invitePath,
+  readFileSync(invitePath, "utf8")
+    .replace('import { getUser, formatUser } from "../users/users.js";', 'import { getUser, formatUser, type Viewer } from "../users/users.js";')
+    .replace("buildInvite(inviterId: string, teamName: string)", "buildInvite(inviterId: string, teamName: string, viewer: Viewer)")
+    .replace("getUser(inviterId)", "getUser(inviterId, viewer)"),
+);
+console.log("  ada: getUser(inviterId) → getUser(inviterId, viewer)");
+
+step("Locked rehearses the merge again");
+const adaRef2 = wip(ada, "ada", "feat/invites");
+git(engine, "fetch", "-q", "origin", "+refs/locked/*:refs/locked/*");
+const again = await rehearse({
+  repoDir: engine,
+  base: "origin/main",
+  a: { dev: "tolu", ref: toluIntent.wipRef },
+  b: { dev: "ada", ref: adaRef2 },
+  checks: ["npm run typecheck"],
+  timeoutMs: 180_000,
+});
+room(again.status === "clean" ? `✅ Merge rehearsal: tolu + ada merge clean and pass ${again.checks.join(", ")}.` : JSON.stringify(again));
+
 step("The board Locked keeps pinned in the room");
-room(renderBoard({ repo: "teamdesk", intents: [toluIntent, adaIntent], conflicts, contracts: [], lastRehearsal: result, now: Date.now() }));
+room(renderBoard({ repo: "teamdesk", intents: [toluIntent, adaIntent], conflicts: [], contracts: [agreement], lastRehearsal: again, now: Date.now() }));
 
 console.log(
-  `\nThat was the real engine on real git and real code. In a team, the same posts land in your Switch room, the agents agree the new\n` +
-    `getUser shape there, the tech lead types "approve C1", and both branches merge clean. See docs/RESULTS.md for the full live run.\n`,
+  `\nThat was the real engine on real git and real code: a break forecast, an agreement drafted, accepted and approved, and a clean\n` +
+    `rehearsal after the agent adapted. In a team the same posts land in your Switch room, where real coding agents and the tech lead\n` +
+    `do the accepting and approving. See docs/RESULTS.md for the full live run with two Claude Code agents.\n`,
 );
