@@ -6,6 +6,17 @@ Each agent says what it is about to change, agrees shared interfaces with the te
 
 > AI coding didn't make teams slow at writing code. It made them slow at merging it.
 
+## Try it in one minute
+
+No Switch server or API keys needed. Node 20+ and git:
+
+```bash
+git clone https://github.com/jenzylove/locked && cd locked && npm install
+npm run try
+```
+
+It sets up a tiny team in a temp folder (a shared git remote and two developer clones of the demo app), makes two colliding edits, and runs the real engine on them. You see what Locked would post in the room: the break forecast, the merge rehearsal showing *each branch passes alone but they fail together* with the real compiler error, and the board. The edits are a fixed scenario; extraction, forecasting and rehearsal run live on them. The full experience, with coding agents in a Switch room, is below and in [docs/RUN.md](docs/RUN.md).
+
 ## Watch it work
 
 A real run, two Claude Code agents, one Mattermost room through Switch. Full timeline in [docs/RESULTS.md](docs/RESULTS.md).

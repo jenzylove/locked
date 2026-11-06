@@ -11,7 +11,8 @@
     "build": "tsc -p .",
     "test": "vitest run",
     "engine": "tsx src/engine/main.ts",
-    "sidecar": "tsx src/sidecar/main.ts"
+    "sidecar": "tsx src/sidecar/main.ts",
+    "try": "tsx src/try.ts"
   },
   "engines": {
     "node": ">=20"
