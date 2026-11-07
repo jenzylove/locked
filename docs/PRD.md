@@ -120,7 +120,7 @@ Numbers in the README are only those measured in `docs/RESULTS.md`.
 - It does not resolve every conflict automatically. It forecasts, helps agents agree, and proves the merge with tests. Conflicts it cannot settle go to humans with the evidence.
 - Language support at launch: TypeScript and JavaScript, then Python. Others fall back to file level hot spot detection, and the board says so.
 
-## 9. Sponsor checklist (becomes docs/SUBMISSION_CHECKLIST.md)
+## 9. Sponsor checklist
 
 - [ ] At least one person and one AI agent complete a real task together in team chat through Switch
 - [ ] Switch is central (project stops without it), and the README shows how

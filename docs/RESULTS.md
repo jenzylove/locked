@@ -1,6 +1,6 @@
 # Results
 
-Every line here comes from a real run. Nothing is replayed or staged.
+This is what happened in the live run, taken from the room log, the engine state and git.
 
 ## Run 1: two Claude Code agents, one Switch room (Nov 5 2026, 21:54 to 22:12 Lagos time)
 
@@ -18,7 +18,7 @@ What happened:
 | 21:55 | ada notices on the board that its page shows the inviter's email, which overlaps tolu's rule, and says it will line up through Locked | room log |
 | 21:56 | Locked flags both agents editing `src/routes/index.ts` | room log |
 | 21:56 | **Merge rehearsal: pass alone, fail together.** Each branch's work in progress passed its own checks; merged, 2 tests failed (`formatUser` and `buildProfile` lost the email) | room log, throwaway git worktree run |
-| 21:56 | ada asks the human a real product question nobody planted: if a guest is invited, should they see the inviter's email? | room log |
+| 21:56 | ada stops and asks the tech lead a product question on its own: if a guest is invited, should they see the inviter's email? | room log |
 | 21:57 | tolu updates its tests; next rehearsal is green | room log |
 | 22:02 | Tech lead decides: guest rule wins | room log |
 | 22:04 | ada switches its page to tolu's `viewUser`, accepts C1 to C4 through Locked | room log, engine state |
@@ -34,4 +34,4 @@ What happened:
 
 ## Engine tests
 
-`npx vitest run`: 6 files, 47 tests, all passing. They cover change extraction from real git repos, break forecasting, the agreement state machine, the room board, and merge rehearsal on real git (clean, text conflict, and pass alone but fail together).
+`npm test`: 7 files, 50 tests, all passing. They cover change extraction from real git repos, break forecasting, the agreement state machine, the room board, drafting agreements from forecasts, and merge rehearsal on real git (clean, text conflict, and pass alone but fail together).
